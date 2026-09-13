@@ -228,10 +228,18 @@ Deno.serve(async (req: Request) => {
     // Sem isso, apagar os lançamentos importados não adianta: o próximo
     // sync ainda parte do último ultimo_sync (recente) e não traz nada.
     let dateFromOverride: string | null = null;
+    // Checkbox "Não importar rendimentos" na aba Revisão — pula transações
+    // cuja categoria da Pluggy é rendimento/dividendo (ex.: descrição
+    // "Rendimentos" de conta remunerada), que costumam ser em massa e
+    // sem interesse pra maioria dos usuários acompanhar como lançamento.
+    let ignorarRendimentos = false;
     try {
       const body = await req.json();
       if (typeof body?.dateFrom === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.dateFrom)) {
         dateFromOverride = body.dateFrom;
+      }
+      if (body?.ignorarRendimentos === true) {
+        ignorarRendimentos = true;
       }
     } catch {
       // corpo vazio ({}) — segue sem override, comportamento de sempre.
@@ -290,6 +298,9 @@ Deno.serve(async (req: Request) => {
             // algo em português mesmo quando não bate com nenhuma categoria
             // já cadastrada) e usada na sugestão.
             const categoriaTraduzida = t.category ? traduzirCategoriaPluggy(t.category) : null;
+            if (ignorarRendimentos && categoriaTraduzida === "Rendimentos e dividendos") {
+              continue;
+            }
             const descricaoBanco = t.description || t.descriptionRaw || "";
             linhas.push({
               pluggy_transaction_id: t.id,

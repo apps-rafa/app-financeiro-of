@@ -321,7 +321,11 @@ async function sincronizarPluggyAgora() {
     if (btn) { btn.disabled = true; btn.textContent = 'Sincronizando...'; }
     try {
         const dateFrom = calcularDateFromSync();
-        const { data, error } = await sb.functions.invoke('pluggy-sync', { body: dateFrom ? { dateFrom } : {} });
+        const ignorarRendimentos = document.getElementById('syncIgnorarRendimentos')?.checked || false;
+        const body = {};
+        if (dateFrom) body.dateFrom = dateFrom;
+        if (ignorarRendimentos) body.ignorarRendimentos = true;
+        const { data, error } = await sb.functions.invoke('pluggy-sync', { body });
         if (error) throw error;
         const novas = data?.novas || 0;
         mostrarNotificacao(

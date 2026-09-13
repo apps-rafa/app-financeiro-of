@@ -58,6 +58,17 @@ function configurarEventListeners() {
         btnLimparRevisao.addEventListener('click', onClickLimparRevisao);
     }
 
+    // Aba Revisão: checkbox "Não importar rendimentos" — lembrada entre
+    // sessões (localStorage) já que é uma preferência de uso, não algo
+    // ligado a uma sincronização específica.
+    const chkIgnorarRendimentos = document.getElementById('syncIgnorarRendimentos');
+    if (chkIgnorarRendimentos) {
+        chkIgnorarRendimentos.checked = localStorage.getItem('pluggyIgnorarRendimentos') === '1';
+        chkIgnorarRendimentos.addEventListener('change', () => {
+            localStorage.setItem('pluggyIgnorarRendimentos', chkIgnorarRendimentos.checked ? '1' : '0');
+        });
+    }
+
     // Aba Despesas: alternar "Por recorrência" / "Por método"
     const modoSaidas = document.getElementById('modoSaidas');
     if (modoSaidas) modoSaidas.addEventListener('click', e => {

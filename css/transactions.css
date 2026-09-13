@@ -55,6 +55,15 @@
     white-space: nowrap;
 }
 .sync-qtd { width: 3.6rem; text-align: right; }
+.sync-checkbox {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    font-size: .8rem;
+    color: var(--text-muted, #6c757d);
+    white-space: nowrap;
+    cursor: pointer;
+}
 
 /* Faturas de cartão (topo das Próximas) */
 .faturas-cartao { display: flex; flex-direction: column; gap: .4rem; margin-bottom: var(--spacing-md); }

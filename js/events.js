@@ -58,12 +58,13 @@ function configurarEventListeners() {
         btnLimparRevisao.addEventListener('click', onClickLimparRevisao);
     }
 
-    // Aba Revisão: checkbox "Agrupar rendimentos" — lembrada entre sessões
-    // (localStorage) já que é uma preferência de uso, não algo ligado a
-    // uma sincronização específica.
+    // Aba Revisão: checkbox "Agrupar rendimentos" — marcado por padrão;
+    // lembrada entre sessões (localStorage) já que é uma preferência de
+    // uso, não algo ligado a uma sincronização específica. Só desmarca se
+    // o usuário já desmarcou antes (valor '0' salvo explicitamente).
     const chkAgruparRendimentos = document.getElementById('syncAgruparRendimentos');
     if (chkAgruparRendimentos) {
-        chkAgruparRendimentos.checked = localStorage.getItem('pluggyAgruparRendimentos') === '1';
+        chkAgruparRendimentos.checked = localStorage.getItem('pluggyAgruparRendimentos') !== '0';
         chkAgruparRendimentos.addEventListener('change', () => {
             localStorage.setItem('pluggyAgruparRendimentos', chkAgruparRendimentos.checked ? '1' : '0');
         });

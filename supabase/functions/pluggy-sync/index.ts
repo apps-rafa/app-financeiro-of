@@ -228,21 +228,33 @@ Deno.serve(async (req: Request) => {
     // Sem isso, apagar os lançamentos importados não adianta: o próximo
     // sync ainda parte do último ultimo_sync (recente) e não traz nada.
     let dateFromOverride: string | null = null;
-    // Checkbox "Não importar rendimentos" na aba Revisão — pula transações
-    // cuja categoria da Pluggy é rendimento/dividendo (ex.: descrição
-    // "Rendimentos" de conta remunerada), que costumam ser em massa e
-    // sem interesse pra maioria dos usuários acompanhar como lançamento.
-    let ignorarRendimentos = false;
+    // Checkbox "Agrupar rendimentos" na aba Revisão — em vez de uma linha
+    // por transação de rendimento/dividendo (ex.: descrição "Rendimentos"
+    // de conta remunerada, que credita quase todo dia e enche a fila com
+    // valores minúsculos), consolida tudo num único lançamento por conta,
+    // com a soma do período buscado nesta sincronização.
+    let agruparRendimentos = false;
     try {
       const body = await req.json();
       if (typeof body?.dateFrom === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.dateFrom)) {
         dateFromOverride = body.dateFrom;
       }
-      if (body?.ignorarRendimentos === true) {
-        ignorarRendimentos = true;
+      if (body?.agruparRendimentos === true) {
+        agruparRendimentos = true;
       }
     } catch {
       // corpo vazio ({}) — segue sem override, comportamento de sempre.
+    }
+
+    // ID determinístico (SHA-256 formatado como uuid) pro lançamento
+    // consolidado de rendimentos — mesma semente (conta + janela buscada)
+    // sempre gera o mesmo id, então rodar o sync de novo pra uma janela já
+    // coberta atualiza a mesma linha em vez de duplicar.
+    async function idRendimentosAgrupados(contaId: number, dateFrom: string, ultimaData: string): Promise<string> {
+      const semente = `rendimentos-agrupados-${contaId}-${dateFrom}-${ultimaData}`;
+      const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(semente));
+      const hex = Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, "0")).join("");
+      return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
     }
 
     // Inclui contas com erro também — um sync manual deve tentar de novo,
@@ -275,6 +287,10 @@ Deno.serve(async (req: Request) => {
 
       try {
         const linhas: Record<string, unknown>[] = [];
+        // Acumulado dos "Rendimentos e dividendos" desta conta nesta
+        // sincronização, quando agruparRendimentos está ligado — vira um
+        // único lançamento no final, em vez de um por transação.
+        let rendimentosAgrupados: { soma: number; contagem: number; ultimaData: string } | null = null;
         // /transactions (offset) foi descontinuado pela Pluggy (410
         // ENDPOINT_DEPRECATED) — /v2/transactions pagina por cursor: cada
         // resposta traz "next" com a query string pronta pra próxima página.
@@ -298,14 +314,23 @@ Deno.serve(async (req: Request) => {
             // algo em português mesmo quando não bate com nenhuma categoria
             // já cadastrada) e usada na sugestão.
             const categoriaTraduzida = t.category ? traduzirCategoriaPluggy(t.category) : null;
-            if (ignorarRendimentos && categoriaTraduzida === "Rendimentos e dividendos") {
+            const dataTransacao = String(t.date ?? "").slice(0, 10);
+            if (agruparRendimentos && categoriaTraduzida === "Rendimentos e dividendos") {
+              const valorAbs = Math.abs(Number(t.amount) || 0);
+              if (!rendimentosAgrupados) {
+                rendimentosAgrupados = { soma: valorAbs, contagem: 1, ultimaData: dataTransacao };
+              } else {
+                rendimentosAgrupados.soma += valorAbs;
+                rendimentosAgrupados.contagem += 1;
+                if (dataTransacao > rendimentosAgrupados.ultimaData) rendimentosAgrupados.ultimaData = dataTransacao;
+              }
               continue;
             }
             const descricaoBanco = t.description || t.descriptionRaw || "";
             linhas.push({
               pluggy_transaction_id: t.id,
               conta_id: conta.id,
-              data: String(t.date ?? "").slice(0, 10),
+              data: dataTransacao,
               valor: Math.abs(Number(t.amount) || 0),
               tipo,
               descricao_banco: descricaoBanco,
@@ -317,6 +342,24 @@ Deno.serve(async (req: Request) => {
             });
           }
           path = resp.next ? `/v2/transactions?${String(resp.next).replace(/^\?/, "")}` : null;
+        }
+
+        if (agruparRendimentos && rendimentosAgrupados) {
+          const { soma, contagem, ultimaData } = rendimentosAgrupados;
+          const descricaoBanco = `Rendimentos (${contagem} lançamento${contagem > 1 ? "s" : ""} agrupado${contagem > 1 ? "s" : ""})`;
+          linhas.push({
+            pluggy_transaction_id: await idRendimentosAgrupados(conta.id, dateFrom, ultimaData),
+            conta_id: conta.id,
+            data: ultimaData,
+            valor: soma,
+            tipo: "entradas",
+            descricao_banco: descricaoBanco,
+            categoria_pluggy: "Rendimentos e dividendos",
+            categoria_sugerida: sugerirCategoria("Rendimentos e dividendos", descricaoBanco, "entradas", categoriasApp ?? []),
+            metodo_sugerido: conta.metodo_id ?? null,
+            status: "pendente",
+            user_id: user.id,
+          });
         }
 
         if (linhas.length) {

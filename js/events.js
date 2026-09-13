@@ -58,14 +58,14 @@ function configurarEventListeners() {
         btnLimparRevisao.addEventListener('click', onClickLimparRevisao);
     }
 
-    // Aba Revisão: checkbox "Não importar rendimentos" — lembrada entre
-    // sessões (localStorage) já que é uma preferência de uso, não algo
-    // ligado a uma sincronização específica.
-    const chkIgnorarRendimentos = document.getElementById('syncIgnorarRendimentos');
-    if (chkIgnorarRendimentos) {
-        chkIgnorarRendimentos.checked = localStorage.getItem('pluggyIgnorarRendimentos') === '1';
-        chkIgnorarRendimentos.addEventListener('change', () => {
-            localStorage.setItem('pluggyIgnorarRendimentos', chkIgnorarRendimentos.checked ? '1' : '0');
+    // Aba Revisão: checkbox "Agrupar rendimentos" — lembrada entre sessões
+    // (localStorage) já que é uma preferência de uso, não algo ligado a
+    // uma sincronização específica.
+    const chkAgruparRendimentos = document.getElementById('syncAgruparRendimentos');
+    if (chkAgruparRendimentos) {
+        chkAgruparRendimentos.checked = localStorage.getItem('pluggyAgruparRendimentos') === '1';
+        chkAgruparRendimentos.addEventListener('change', () => {
+            localStorage.setItem('pluggyAgruparRendimentos', chkAgruparRendimentos.checked ? '1' : '0');
         });
     }
 

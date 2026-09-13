@@ -321,10 +321,10 @@ async function sincronizarPluggyAgora() {
     if (btn) { btn.disabled = true; btn.textContent = 'Sincronizando...'; }
     try {
         const dateFrom = calcularDateFromSync();
-        const ignorarRendimentos = document.getElementById('syncIgnorarRendimentos')?.checked || false;
+        const agruparRendimentos = document.getElementById('syncAgruparRendimentos')?.checked || false;
         const body = {};
         if (dateFrom) body.dateFrom = dateFrom;
-        if (ignorarRendimentos) body.ignorarRendimentos = true;
+        if (agruparRendimentos) body.agruparRendimentos = true;
         const { data, error } = await sb.functions.invoke('pluggy-sync', { body });
         if (error) throw error;
         const novas = data?.novas || 0;
